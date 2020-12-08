@@ -1,0 +1,26 @@
+{
+  "name": "clementine",
+  "version": "1.0.0",
+  "description": "clementine is an abstract repository to build custom integrations for abotkit",
+  "main": "clementine.js",
+  "scripts": {
+    "start": "node clementine.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/abotkit/clementine.git"
+  },
+  "author": "abotkit.io",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/abotkit/clementine/issues"
+  },
+  "homepage": "https://github.com/abotkit/clementine#readme",
+  "dependencies": {
+    "express": "^4.17.1",
+    "axios": "^0.19.2",
+    "bunyan": "^1.8.14",
+    "cors": "^2.8.5"
+  }
+}
