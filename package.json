@@ -2,9 +2,9 @@
   "name": "clementine",
   "version": "1.0.0",
   "description": "clementine is an abstract repository to build custom integrations for abotkit",
-  "main": "clementine.js",
+  "main": "index.js",
   "scripts": {
-    "start": "node clementine.js",
+    "start": "nodemon index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
@@ -16,11 +16,27 @@
   "bugs": {
     "url": "https://github.com/abotkit/clementine/issues"
   },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "Firefox ESR"
+  ],
   "homepage": "https://github.com/abotkit/clementine#readme",
   "dependencies": {
-    "express": "^4.17.1",
     "axios": "^0.19.2",
     "bunyan": "^1.8.14",
-    "cors": "^2.8.5"
+    "cors": "^2.8.5",
+    "express": "^4.17.1",
+    "nodemon": "^2.0.6",
+    "react": "^17.0.1",
+    "react-dom": "^17.0.1",
+    "regenerator-runtime": "^0.13.7"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.12.9",
+    "@babel/plugin-transform-runtime": "^7.12.1",
+    "@babel/preset-env": "^7.12.7",
+    "@babel/preset-react": "^7.12.7",
+    "@babel/register": "^7.12.1"
   }
 }
