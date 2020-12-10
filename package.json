@@ -4,8 +4,8 @@
   "description": "clementine is an abstract repository to build custom integrations for abotkit",
   "main": "index.js",
   "scripts": {
-    "start": "nodemon index.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node index.js",
+    "dev": "nodemon index.js"
   },
   "repository": {
     "type": "git",
@@ -23,10 +23,12 @@
   ],
   "homepage": "https://github.com/abotkit/clementine#readme",
   "dependencies": {
+    "antd": "^4.9.2",
     "axios": "^0.19.2",
     "bunyan": "^1.8.14",
     "cors": "^2.8.5",
     "express": "^4.17.1",
+    "level": "^6.0.1",
     "nodemon": "^2.0.6",
     "react": "^17.0.1",
     "react-dom": "^17.0.1",

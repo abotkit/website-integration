@@ -6,6 +6,8 @@ import cors from 'cors';
 import axios from 'axios';
 import bunyan from 'bunyan';
 import Settings from './Settings';
+import level from 'level';
+const db = level('./db', { valueEncoding: 'json' });
 
 const app = express();
 app.use(express.json());
@@ -30,6 +32,47 @@ app.get('/alive', (req, res) => {
 app.get('/settings', (req, res) => {
   res.json(ReactDOMServer.renderToString(<Settings />));
 })
+
+/*
+  Dolores will ask maeve to call this endpoint 
+  after submission of your settings form (e.g. Settings.jsx)
+  
+  req.body.settings could be any json object like:
+
+  "settings": {
+      "name": "fancy name",
+      "password": "fancy password"
+  }
+*/
+app.post('/settings', async (req, res) => {
+  if (typeof req.body.settings !== 'undefined') {
+    try {
+      await db.put('settings', req.body.settings);
+      res.status(200).end();
+    } catch (error) {
+      logger.error(error);
+      res.status(500).json(error);
+    }
+  } else {
+    res.status(200).end();
+  }
+});
+
+/*
+  You can add custom code if anyone needs to communicate with your integration via maeve
+*/
+app.post('/execute', (req, res) => {
+  res.status(200).end();
+
+  db.get('settings', (error, value) => {
+    if (error) {
+      return res.status(500).json(error);
+    } else {
+      logger.info(value);
+      res.status(200).end();
+    }
+  });
+});
 
 app.listen(port, async () => {
   logger.info(`"I'm listening on port ${port}!`);
@@ -58,7 +101,7 @@ app.listen(port, async () => {
   /*
     Remove this section if your integration does not need to perform a background task
   */
-  const backgroundTaskIntervalDelay = 5000;
+  const backgroundTaskIntervalDelay = 10000;
   setInterval(() => { 
     logger.info('Perform background task like fetching or polling.')
   }, backgroundTaskIntervalDelay); 
