@@ -1,12 +1,10 @@
-import React from 'react';
-import express from 'express';
-import { env } from 'process';
-import ReactDOMServer from 'react-dom/server';
-import cors from 'cors';
-import axios from 'axios';
-import bunyan from 'bunyan';
-import Settings from './Settings';
-import level from 'level';
+const express = require('express');
+const { env } = require('process');
+const cors = require('cors');
+const axios = require('axios');
+const bunyan = require('bunyan');
+const ip = require('ip');
+const level = require('level');
 const db = level('./db', { valueEncoding: 'json' });
 
 const app = express();
@@ -26,11 +24,58 @@ app.get('/alive', (req, res) => {
 });
 
 /*
-  This settings component will be requested by maeve and delivered to dolores 
+  This settings config will be requested by maeve and delivered to dolores and then rendered into input fields
   and allows the user to enter some settings
 */
 app.get('/settings', (req, res) => {
-  res.json(ReactDOMServer.renderToString(<Settings />));
+  const settings = [{
+    type: 'input',
+    placeholder: {
+      de: 'Benutzername',
+      en: 'Username'
+    },
+    name: 'username'
+  }, {
+    type: 'input',
+    placeholder: {
+      de: 'Passwort',
+      en: 'Password'
+    },
+    name: 'password'
+  }, {
+    type: 'button',
+    id: 'submit-settings',
+    action: 'submit',
+    text: {
+      de: 'Absenden',
+      en: 'Submit'
+    },
+    postActionSnackbar: {
+      de: 'Deine Einstellungen wurden erfolgreich gespeichert', 
+      en: 'Successfully stored your preferences'
+    }
+  }, {
+    type: 'button',
+    id: 'hello-client',
+    action: (() => alert("hello")).toString(),
+    text: {
+      de: 'Hallo',
+      en: 'Hello'
+    }
+  }, {
+    type: 'button',
+    id: 'hello-server',
+    action: 'execute',
+    postAction: (response => {
+      alert(response.data);
+    }).toString(),
+    text: {
+      de: 'Hallo Server',
+      en: 'Hello Server'
+    }
+  }];
+
+  res.json(settings);
 })
 
 /*
@@ -45,9 +90,9 @@ app.get('/settings', (req, res) => {
   }
 */
 app.post('/settings', async (req, res) => {
-  if (typeof req.body.settings !== 'undefined') {
+  if (typeof req.body.data !== 'undefined') {
     try {
-      await db.put('settings', req.body.settings);
+      await db.put('settings', req.body.data);
       res.status(200).end();
     } catch (error) {
       logger.error(error);
@@ -62,14 +107,18 @@ app.post('/settings', async (req, res) => {
   You can add custom code if anyone needs to communicate with your integration via maeve
 */
 app.post('/execute', (req, res) => {
-  res.status(200).end();
-
   db.get('settings', (error, value) => {
     if (error) {
+      logger.error(error);
       return res.status(500).json(error);
     } else {
       logger.info(value);
-      res.status(200).end();
+
+      if (typeof value.username === 'undefined') {
+        res.status(200).send('hello');
+      } else {
+        res.status(200).send(`hello ${value.username}`);
+      }
     }
   });
 });
@@ -83,20 +132,32 @@ app.listen(port, async () => {
   try {
     /*
       You need to register your integration for a specified bot therefore a maeve instance url and port is needed
-      -> maeve will extract the clementine url and port from req.headers.host
-
       Maeve will register this integration for all bots, if bot is not specified
     */
-    await axios.post(`${maeveUrl}:${maevePort}/register/integration`, {
-      name: 'My integration',
+    await axios.post(`${maeveUrl}:${maevePort}/integration`, {
+      name: 'Any Integration',
       secret: 'API-SECRET',
-      bot: 'robert'
+      url: `http://${ip.address()}:${port}`
     });
 
     logger.info('Integration successfully registered');
-  } catch {
+  } catch (error) {
+    logger.error(error);
     logger.warn('Integration registration failed. Check maeve url or secret.');
   }
+
+  try {
+    const settings = await db.get('settings');
+    console.log(settings);
+  } catch (error) {
+    if (error.type === 'NotFoundError') {
+      logger.info('settings does not exist. Add empty object as value instead.')
+      await db.put('settings', {});
+    } else {
+      logger.error(error);
+    }
+  }
+
 
   /*
     Remove this section if your integration does not need to perform a background task
