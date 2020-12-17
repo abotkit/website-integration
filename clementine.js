@@ -104,6 +104,16 @@ app.post('/settings', async (req, res) => {
   }
 });
 
+/*
+  Use this endpoint to return a static ressource
+*/
+app.get('/ressouce', (req, res) => {
+  res.status(200).send('Any resssource.')
+})
+
+/*
+  You can add custom code if anyone needs to communicate with your integration via maeve
+*/
 app.post('/execute', (req, res) => {
   db.get('settings', (error, value) => {
     if (error) {
