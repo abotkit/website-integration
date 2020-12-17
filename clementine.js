@@ -104,6 +104,13 @@ app.post('/settings', async (req, res) => {
 });
 
 /*
+  Use this endpoint to return a static ressource
+*/
+app.get('/ressouce', (req, res) => {
+  res.status(200).send('Any resssource.')
+})
+
+/*
   You can add custom code if anyone needs to communicate with your integration via maeve
 */
 app.post('/execute', (req, res) => {
@@ -142,8 +149,12 @@ app.listen(port, async () => {
 
     logger.info('Integration successfully registered');
   } catch (error) {
-    logger.error(error);
-    logger.warn('Integration registration failed. Check maeve url or secret.');
+    if (error.response && error.response.status === 303) {
+      logger.info('I\'m already registered');
+    } else {
+      logger.error(error);
+      logger.warn('Integration registration failed. Check maeve url or secret.');
+    }
   }
 
   try {
