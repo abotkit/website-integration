@@ -7,6 +7,8 @@ import axios from 'axios';
 import bunyan from 'bunyan';
 import Settings from './Settings';
 import level from 'level';
+import ip from 'ip';
+import { injectOnChange } from './helper';
 const db = level('./db', { valueEncoding: 'json' });
 
 const app = express();
@@ -17,6 +19,18 @@ const logger = bunyan.createLogger({name: 'clementine'});
 logger.level(env.ABOTKIT_CLEMENTINE_LOG_LEVEL || 'info');
 const port = env.ABOTKIT_CLEMENTINE_PORT || 3030;
 
+const revokeUrlWhitelisting = async (url) => {
+
+}
+
+const whitelistUrl = async (url) => {
+
+}
+
+const generateHtmlIntegrationLink = async (bot, uuid) => {
+  return 'https://abotkit.io/integration/website-integration?bot=' + bot;
+}
+
 app.get('/', (req, res) => {
   res.status(200).send('"You\'re new. Not much of a rind on you, I\'ll give you a discount." - Clementine Pennyfeather');
 });
@@ -25,25 +39,12 @@ app.get('/alive', (req, res) => {
   res.status(200).end();
 });
 
-/*
-  This settings component will be requested by maeve and delivered to dolores 
-  and allows the user to enter some settings
-*/
 app.get('/settings', (req, res) => {
-  res.json(ReactDOMServer.renderToString(<Settings />));
+  let htmlString = ReactDOMServer.renderToString(<Settings />);
+  htmlString = injectOnChange('whitelistUrl', htmlString, () => console.log('hi'));
+  res.json(htmlString);
 })
 
-/*
-  Dolores will ask maeve to call this endpoint 
-  after submission of your settings form (e.g. Settings.jsx)
-  
-  req.body.settings could be any json object like:
-
-  "settings": {
-      "name": "fancy name",
-      "password": "fancy password"
-  }
-*/
 app.post('/settings', async (req, res) => {
   if (typeof req.body.settings !== 'undefined') {
     try {
@@ -58,17 +59,14 @@ app.post('/settings', async (req, res) => {
   }
 });
 
-/*
-  You can add custom code if anyone needs to communicate with your integration via maeve
-*/
 app.post('/execute', (req, res) => {
   res.status(200).end();
 
-  db.get('settings', (error, value) => {
+  db.get('settings', async (error, value) => {
     if (error) {
       return res.status(500).json(error);
     } else {
-      logger.info(value);
+      const link = await generateHtmlIntegrationLink(newIntegration.bot, newIntegration.uuid);
       res.status(200).end();
     }
   });
@@ -81,29 +79,19 @@ app.listen(port, async () => {
   const maevePort = env.ABOTKIT_MAEVE_PORT || 3000;
 
   try {
-    /*
-      You need to register your integration for a specified bot therefore a maeve instance url and port is needed
-      -> maeve will extract the clementine url and port from req.headers.host
-
-      Maeve will register this integration for all bots, if bot is not specified
-    */
-    await axios.post(`${maeveUrl}:${maevePort}/register/integration`, {
-      name: 'My integration',
+    await axios.post(`${maeveUrl}:${maevePort}/integration`, {
+      name: 'Website Integration',
       secret: 'API-SECRET',
-      bot: 'robert'
+      url: `http://${ip.address()}:${port}`
     });
 
     logger.info('Integration successfully registered');
-  } catch {
-    logger.warn('Integration registration failed. Check maeve url or secret.');
+  } catch (error) {
+    if (error.response && error.response.status === 303) {
+      logger.info('I\'m already registered');
+    } else {
+      logger.error('Integration registration failed. Check maeve url or secret.');
+      logger.error(error);
+    }
   }
-
-  /*
-    Remove this section if your integration does not need to perform a background task
-  */
-  const backgroundTaskIntervalDelay = 10000;
-  setInterval(() => { 
-    logger.info('Perform background task like fetching or polling.')
-  }, backgroundTaskIntervalDelay); 
-
 });
