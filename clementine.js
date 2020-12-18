@@ -26,8 +26,8 @@ app.get('/alive', (req, res) => {
   res.status(200).end();
 });
 
-const generateHtmlIntegrationLink = async bot => {
-  return `<script type="text/javascript" src="${maeveUrl}/integration/website-integration/ressource?bot=${bot}"></script>`;
+const generateHtmlIntegrationLink = bot => {
+  return `<script type="text/javascript" src="${maeveUrl}/integration/Website%20Integration/resource?bot=${bot}"></script>`;
 }
 
 /*
@@ -36,14 +36,31 @@ const generateHtmlIntegrationLink = async bot => {
 */
 app.get('/settings', (req, res) => {
   db.get('whitelist', (error, value) => {
+    console.log(value)
     if (error) {
       logger.error(error);
       return res.status(500).json(error);
     } else {
       const settings = [{
+        type: 'input',
+        placeholder: {
+          de: 'Script Element',
+          en: 'Script Element'
+        },
+        attributes: ['readonly', 'copyable'],
+        value: generateHtmlIntegrationLink(req.query.bot)
+      }, {
         type: 'dynamic-list',
         name: 'whitelist',
-        entries: JSON.stringify(value)
+        headline: {
+          de: 'Erlaubte Urls',
+          en: 'Whitelisted Urls'
+        },
+        placeholder: {
+          de: 'Eine neue Url',
+          en: 'A new Url'
+        },
+        entries: value
       }, {
         type: 'button',
         id: 'submit-settings',
@@ -56,25 +73,6 @@ app.get('/settings', (req, res) => {
           de: 'Deine Einstellungen wurden erfolgreich gespeichert', 
           en: 'Successfully stored your preferences'
         }
-      }, {
-        type: 'button',
-        id: 'generateLink',
-        action: 'execute',
-        postAction: (response => {
-          alert(response.data);
-        }).toString(),
-        text: {
-          de: 'Hallo Server',
-          en: 'Hello Server'
-        }
-      }, {
-        type: 'input',
-        placeholder: {
-          de: 'Script Element',
-          en: 'Script Element'
-        },
-        attributes: ['readonly', 'add_to_clipboard'],
-        value: generateHtmlIntegrationLink()
       }];
       res.json(settings);
     }
@@ -84,7 +82,8 @@ app.get('/settings', (req, res) => {
 app.post('/settings', async (req, res) => {
   if (typeof req.body.data !== 'undefined') {
     try {
-      await db.put('settings', req.body.data);
+      console.log(req.body.data)
+      await db.put('whitelist', req.body.data.whitelist || []);
       res.status(200).end();
     } catch (error) {
       logger.error(error);
@@ -96,17 +95,29 @@ app.post('/settings', async (req, res) => {
 });
 
 /*
-  Use this endpoint to return a static ressource
+  Use this endpoint to return a static resource
 */
-app.get('/ressouce', (req, res) => {
-  res.status(200).send('console.log("hello world")');
+app.get('/resource', (req, res) => {
+
+  function addDiv() {
+    var div = document.createElement('div');
+    div.style.height = '40vh';
+    div.style.width = '25vw';
+    div.style.position = 'fixed';
+    div.style.bottom = '12px';
+    div.style.right = '12px';
+    div.style.backgroundColor = 'rgba(0,0,0,0.625)';
+    document.body.appendChild(div);
+  }
+  res.setHeader("Content-Type", "text/javascript");
+  res.status(200).send(`${addDiv.toString()} addDiv();`);
 });
 
 app.listen(port, async () => {
   logger.info(`"I'm listening on port ${port}!`);
 
   try {
-    await axios.post(`${maeveUrl}:${maevePort}/integration`, {
+    await axios.post(`${maeveUrl}/integration`, {
       name: 'Website Integration',
       secret: 'API-SECRET',
       url: `http://${ip.address()}:${port}`
@@ -126,7 +137,7 @@ app.listen(port, async () => {
     await db.get('whitelist');
   } catch (error) {
     if (error.type === 'NotFoundError') {
-      logger.info('whitelist does not exist. Add empty object as value instead.')
+      logger.info('whitelist does not exist. Add empty list as value instead.')
       await db.put('whitelist', []);
     } else {
       logger.error(error);
