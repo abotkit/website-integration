@@ -1,5 +1,5 @@
 const express = require('express');
-const { env } = require('process');
+const { env, title } = require('process');
 const cors = require('cors');
 const axios = require('axios');
 const bunyan = require('bunyan');
@@ -99,18 +99,144 @@ app.post('/settings', async (req, res) => {
 */
 app.get('/resource', (req, res) => {
 
-  function addDiv() {
-    var div = document.createElement('div');
-    div.style.height = '40vh';
-    div.style.width = '25vw';
-    div.style.position = 'fixed';
-    div.style.bottom = '12px';
-    div.style.right = '12px';
-    div.style.backgroundColor = 'rgba(0,0,0,0.625)';
-    document.body.appendChild(div);
+  function injectChatbot() {
+    var sheet = document.createElement('style')
+    sheet.innerHTML = `
+      .abotkit-chat-root {
+        position: fixed;
+        bottom: 12px;
+        right: 12px;
+      }
+
+      .abotkit-chat-fab { 
+        background-color: #00838F;
+        width: 60px;
+        height: 60px;
+        border-radius: 100%;
+        background: #00838F;
+        border: none;
+        outline: none;
+        color: #FFF;
+        font-size: 36px;
+        box-shadow: 0 3px 6px rgba(0,0,0,0.16), 0 3px 6px rgba(0,0,0,0.23);
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+
+      .abotkit-chat-window {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch; 
+        width: 50vw;
+        height: 75vh;
+      }
+      
+      .abotkit-chat-window-title {
+        height: 32px;
+        background-color: #00838F;
+        border-top-left-radius: 16px;
+        border-top-right-radius: 16px;
+      }
+
+      .abotkit-chat-window-title > span {
+        cursor: pointer;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        height: 100%;
+      }
+
+      .abotkit-chat-window-title > span > svg {
+        padding-right: 12px;
+      }
+
+      .abotkit-chat-window-history {
+        background-color: white;
+        flex-grow: 1;
+      }
+
+      .abotkit-chat-window-input {
+        display: flex;
+      }
+
+      .abotkit-chat-window-input > input {
+        flex-grow: 1;
+      }
+
+      .abotkit-chat-window-input > span {
+        background: white;
+        padding: 6px;
+      }
+    `;
+    
+    var root = document.createElement('div');
+    root.classList.add('abotkit-chat-root');
+
+    var button = document.createElement('div');
+    button.classList.add('abotkit-chat-fab');
+    button.innerHTML = '<svg viewBox="64 64 896 896" focusable="false" data-icon="message" width="0.8em" height="0.8em" fill="currentColor" aria-hidden="true"><path d="M464 512a48 48 0 1096 0 48 48 0 10-96 0zm200 0a48 48 0 1096 0 48 48 0 10-96 0zm-400 0a48 48 0 1096 0 48 48 0 10-96 0zm661.2-173.6c-22.6-53.7-55-101.9-96.3-143.3a444.35 444.35 0 00-143.3-96.3C630.6 75.7 572.2 64 512 64h-2c-60.6.3-119.3 12.3-174.5 35.9a445.35 445.35 0 00-142 96.5c-40.9 41.3-73 89.3-95.2 142.8-23 55.4-34.6 114.3-34.3 174.9A449.4 449.4 0 00112 714v152a46 46 0 0046 46h152.1A449.4 449.4 0 00510 960h2.1c59.9 0 118-11.6 172.7-34.3a444.48 444.48 0 00142.8-95.2c41.3-40.9 73.8-88.7 96.5-142 23.6-55.2 35.6-113.9 35.9-174.5.3-60.9-11.5-120-34.8-175.6zm-151.1 438C704 845.8 611 884 512 884h-1.7c-60.3-.3-120.2-15.3-173.1-43.5l-8.4-4.5H188V695.2l-4.5-8.4C155.3 633.9 140.3 574 140 513.7c-.4-99.7 37.7-193.3 107.6-263.8 69.8-70.5 163.1-109.5 262.8-109.9h1.7c50 0 98.5 9.7 144.2 28.9 44.6 18.7 84.6 45.6 119 80 34.3 34.3 61.3 74.4 80 119 19.4 46.2 29.1 95.2 28.9 145.8-.6 99.6-39.7 192.9-110.1 262.7z"></path></svg>';
+    button.style.display = 'flex';
+
+    var chat = document.createElement('div');
+    chat.classList.add('abotkit-chat-window');
+
+    var toggleChat = function (show) {
+      if (show) {
+        chat.style.display = 'flex';
+        button.style.display = 'none';
+      } else {
+        chat.style.display = 'none';
+        button.style.display = 'flex';
+      }
+    }
+
+    title = document.createElement('div');
+    title.classList.add('abotkit-chat-window-title');
+    closeIcon = document.createElement('span');
+    closeIcon.innerHTML = '<svg viewBox="64 64 896 896" focusable="false" data-icon="close" width="1em" height="1em" fill="currentColor" aria-hidden="true"><path d="M563.8 512l262.5-312.9c4.4-5.2.7-13.1-6.1-13.1h-79.8c-4.7 0-9.2 2.1-12.3 5.7L511.6 449.8 295.1 191.7c-3-3.6-7.5-5.7-12.3-5.7H203c-6.8 0-10.5 7.9-6.1 13.1L459.4 512 196.9 824.9A7.95 7.95 0 00203 838h79.8c4.7 0 9.2-2.1 12.3-5.7l216.5-258.1 216.5 258.1c3 3.6 7.5 5.7 12.3 5.7h79.8c6.8 0 10.5-7.9 6.1-13.1L563.8 512z"></path></svg>';
+    closeIcon.onclick = function() {
+      toggleChat(false);
+    }
+    title.appendChild(closeIcon);
+    
+    chatHistory = document.createElement('div');
+    chatHistory.classList.add('abotkit-chat-window-history');
+
+    chatInput = document.createElement('div');
+    chatInput.classList.add('abotkit-chat-window-input');
+    chatInput.innerHTML = `
+      <input type="text">
+      <span>
+        <svg viewBox="64 64 896 896" focusable="false" data-icon="send" width="1em" height="1em" fill="currentColor" aria-hidden="true"><defs><style></style></defs><path d="M931.4 498.9L94.9 79.5c-3.4-1.7-7.3-2.1-11-1.2a15.99 15.99 0 00-11.7 19.3l86.2 352.2c1.3 5.3 5.2 9.6 10.4 11.3l147.7 50.7-147.6 50.7c-5.2 1.8-9.1 6-10.3 11.3L72.2 926.5c-.9 3.7-.5 7.6 1.2 10.9 3.9 7.9 13.5 11.1 21.5 7.2l836.5-417c3.1-1.5 5.6-4.1 7.2-7.1 3.9-8 .7-17.6-7.2-21.6zM170.8 826.3l50.3-205.6 295.2-101.3c2.3-.8 4.2-2.6 5-5 1.4-4.2-.8-8.7-5-10.2L221.1 403 171 198.2l628 314.9-628.2 313.2z"></path></svg>
+      </span>
+    `;
+
+    chat.appendChild(title);
+    chat.appendChild(chatHistory);
+    chat.appendChild(chatInput);
+
+    chat.style.display = 'none';
+
+    button.onclick = function() {
+      toggleChat(true)
+    }
+
+    root.appendChild(sheet)
+    root.appendChild(button);
+    root.appendChild(chat);
+
+    if (document.body == null) {
+      window.addEventListener('load', function () {
+        document.body.appendChild(root);
+      });
+    } else {
+      document.body.appendChild(root);
+    }
   }
   res.setHeader("Content-Type", "text/javascript");
-  res.status(200).send(`${addDiv.toString()} addDiv();`);
+  res.status(200).send(`${injectChatbot.toString()} injectChatbot();`);
 });
 
 app.listen(port, async () => {
