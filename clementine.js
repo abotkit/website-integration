@@ -1,11 +1,11 @@
 const express = require('express');
-const { env, title } = require('process');
+const { env, title, send } = require('process');
 const cors = require('cors');
 const axios = require('axios');
 const bunyan = require('bunyan');
 const ip = require('ip');
 const level = require('level');
-const { Input } = require('antd');
+const { Input, message } = require('antd');
 const db = level('./db', { valueEncoding: 'json' });
 
 const app = express();
@@ -98,8 +98,7 @@ app.post('/settings', async (req, res) => {
   Use this endpoint to return a static resource
 */
 app.get('/resource', (req, res) => {
-
-  function injectChatbot() {
+  function injectChatbot(abotkitUrl, bot) {
     var sheet = document.createElement('style')
     sheet.innerHTML = `
       .abotkit-chat-root {
@@ -135,8 +134,8 @@ app.get('/resource', (req, res) => {
       .abotkit-chat-window-title {
         height: 32px;
         background-color: #00838F;
-        border-top-left-radius: 16px;
-        border-top-right-radius: 16px;
+        border-top-left-radius: 8px;
+        border-top-right-radius: 8px;
       }
 
       .abotkit-chat-window-title > span {
@@ -152,25 +151,55 @@ app.get('/resource', (req, res) => {
         padding-right: 12px;
       }
 
-      .abotkit-chat-window-history {
-        background-color: white;
-        flex-grow: 1;
-      }
-
       .abotkit-chat-window-input {
         display: flex;
+        border: 1px solid #ccc;
       }
 
       .abotkit-chat-window-input > input {
         flex-grow: 1;
+        padding: 6px;
+        outline: 0;
+        border: 0;
       }
 
       .abotkit-chat-window-input > span {
         background: white;
         padding: 6px;
       }
+
+      .abotkit-chat-messages {
+        color: white;
+        display: flex;
+        flex-grow: 1;
+        background-color: white;
+        overflow-y: scroll;
+        flex-direction: column;
+      }
+
+      .abotkit-chat-message {
+        width: fit-content;
+        margin: 12px;
+        display: flex;
+        padding: 6px 12px;
+        position: relative;
+        border-radius: 6px;
+        flex-direction: column;
+      }
+
+      .abotkit-human-chat-message {
+        background: #0097A7;
+        border-top-left-radius: 0;
+      }
+
+      .abotkit-bot-chat-message {
+        align-self: flex-end;
+        background: #00838F;
+        border-top-right-radius: 0;
+      }
     `;
     
+    var chatIdentifier = new Array(16).join().replace(/(.|$)/g, function(){return ((Math.random()*36)|0).toString(36);});
     var root = document.createElement('div');
     root.classList.add('abotkit-chat-root');
 
@@ -202,16 +231,62 @@ app.get('/resource', (req, res) => {
     title.appendChild(closeIcon);
     
     chatHistory = document.createElement('div');
-    chatHistory.classList.add('abotkit-chat-window-history');
+    chatHistory.classList.add('abotkit-chat-messages');
+
+    var messages = [];
+    var renderMessages = function() {
+      chatHistory.innerHTML = '';
+      for (var message of messages) {
+        var speechBubble = document.createElement('div');
+        speechBubble.innerHTML = message.text;
+        speechBubble.classList.add('abotkit-chat-message');
+        if (message.issuer === 'bot') {
+          speechBubble.classList.add('abotkit-bot-chat-message');
+        } else {
+          speechBubble.classList.add('abotkit-human-chat-message');
+        }
+        chatHistory.appendChild(speechBubble);
+      }
+    }
 
     chatInput = document.createElement('div');
     chatInput.classList.add('abotkit-chat-window-input');
-    chatInput.innerHTML = `
-      <input type="text">
-      <span>
-        <svg viewBox="64 64 896 896" focusable="false" data-icon="send" width="1em" height="1em" fill="currentColor" aria-hidden="true"><defs><style></style></defs><path d="M931.4 498.9L94.9 79.5c-3.4-1.7-7.3-2.1-11-1.2a15.99 15.99 0 00-11.7 19.3l86.2 352.2c1.3 5.3 5.2 9.6 10.4 11.3l147.7 50.7-147.6 50.7c-5.2 1.8-9.1 6-10.3 11.3L72.2 926.5c-.9 3.7-.5 7.6 1.2 10.9 3.9 7.9 13.5 11.1 21.5 7.2l836.5-417c3.1-1.5 5.6-4.1 7.2-7.1 3.9-8 .7-17.6-7.2-21.6zM170.8 826.3l50.3-205.6 295.2-101.3c2.3-.8 4.2-2.6 5-5 1.4-4.2-.8-8.7-5-10.2L221.1 403 171 198.2l628 314.9-628.2 313.2z"></path></svg>
-      </span>
-    `;
+
+    inputField = document.createElement('input');
+    inputField.type = 'text';
+    
+    submitButton = document.createElement('span');
+    submitButton.innerHTML = '<svg viewBox="64 64 896 896" focusable="false" data-icon="send" width="1em" height="1em" fill="currentColor" aria-hidden="true"><defs><style></style></defs><path d="M931.4 498.9L94.9 79.5c-3.4-1.7-7.3-2.1-11-1.2a15.99 15.99 0 00-11.7 19.3l86.2 352.2c1.3 5.3 5.2 9.6 10.4 11.3l147.7 50.7-147.6 50.7c-5.2 1.8-9.1 6-10.3 11.3L72.2 926.5c-.9 3.7-.5 7.6 1.2 10.9 3.9 7.9 13.5 11.1 21.5 7.2l836.5-417c3.1-1.5 5.6-4.1 7.2-7.1 3.9-8 .7-17.6-7.2-21.6zM170.8 826.3l50.3-205.6 295.2-101.3c2.3-.8 4.2-2.6 5-5 1.4-4.2-.8-8.7-5-10.2L221.1 403 171 198.2l628 314.9-628.2 313.2z"></path></svg>';
+    submitButton.onclick = function () {
+      messages.push({issuer: 'user', text: inputField.value});
+      renderMessages();
+      var query = inputField.value;
+      inputField.value = '';
+      fetch(`${abotkitUrl}/handle`, {
+        method: "POST",
+        body: JSON.stringify({
+          bot: bot,
+          query: query,
+          identifier: chatIdentifier
+        }),
+        headers: {"Content-type": "application/json; charset=UTF-8"}
+      })
+      .then(response => response.json())
+      .then(data => {
+        messages.push({issuer: 'bot', text: data[0].text});
+        renderMessages();
+      });
+    };
+
+    inputField.addEventListener("keyup", function(event) {
+      if (event.keyCode === 13) {
+        event.preventDefault();
+        submitButton.click();
+      }
+    });
+
+    chatInput.appendChild(inputField);
+    chatInput.appendChild(submitButton);
 
     chat.appendChild(title);
     chat.appendChild(chatHistory);
@@ -236,7 +311,7 @@ app.get('/resource', (req, res) => {
     }
   }
   res.setHeader("Content-Type", "text/javascript");
-  res.status(200).send(`${injectChatbot.toString()} injectChatbot();`);
+  res.status(200).send(`${injectChatbot.toString()} injectChatbot('${maeveUrl}', '${req.query.bot}');`);
 });
 
 app.listen(port, async () => {
